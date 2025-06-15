@@ -11,12 +11,19 @@ This project demonstrates a complete 3-tier architecture for deploying a WordPre
 ## 🗂️ Project Structure
 
 ├── wordpress-deployment.yaml # WordPress Deployment with environment variables from ConfigMap and Secret
+
 ├── mysql-deployment.yaml # MySQL Deployment
+
 ├── wordpress-service.yaml # LoadBalancer/NodePort service for WordPress
+
 ├── mysql-service.yaml # ClusterIP service for MySQL
+
 ├── wp-configmap.yaml # ConfigMap for database credentials (except password)
+
 ├── mysql-secret.yaml # Secret for MySQL password
+
 ├── wordpress-pvc.yaml # Persistent Volume Claim for WordPress
+
 ├── mysql-pvc.yaml # Persistent Volume Claim for MySQL
 
 
