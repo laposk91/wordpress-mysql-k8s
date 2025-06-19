@@ -182,3 +182,6 @@ main() {
     echo "Use './scripts/verify.sh' to check deployment health"
     echo "Use './scripts/cleanup.sh' to remove the deployment"
 }
+
+# Run main function
+main
