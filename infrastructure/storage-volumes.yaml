@@ -1,1 +1,105 @@
+---
+# 01-infrastructure/storage-volumes.yaml
+# MySQL Persistent Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv
+  labels:
+    type: nfs
+    app: mysql
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-storage
+  nfs:
+    path: /nfs/mysql
+    server: <NFS_SERVER_IP>  # Replace with your NFS server IP
 
+---
+# WordPress Persistent Volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: wordpress-pv
+  labels:
+    type: nfs
+    app: wordpress
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: nfs-storage
+  nfs:
+    path: /nfs/wordpress
+    server: <NFS_SERVER_IP>  # Replace with your NFS server IP
+
+---
+# MySQL Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: wordpress-mysql
+  labels:
+    app: mysql
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: nfs-storage
+  selector:
+    matchLabels:
+      app: mysql
+
+---
+# WordPress Persistent Volume Claim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wordpress-pvc
+  namespace: wordpress-mysql
+  labels:
+    app: wordpress
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: nfs-storage
+  selector:
+    matchLabels:
+      app: wordpress
+
+---
+# 02-security/application-config.yaml
+# WordPress ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wordpress-config
+  namespace: wordpress-mysql
+data:
+  WORDPRESS_DB_HOST: "mysql-service:3306"
+  WORDPRESS_DB_NAME: "wordpress_db"
+  WORDPRESS_DB_USER: "wp_user"
+  WORDPRESS_TABLE_PREFIX: "wp_"
+
+---
+# MySQL ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mysql-config
+  namespace: wordpress-mysql
+data:
+  MYSQL_DATABASE: "wordpress_db"
+  MYSQL_USER: "wp_user"
