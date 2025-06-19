@@ -1,132 +1,118 @@
-# 🖥️ 3-Tier WordPress Deployment on Kubernetes
+📋 Overview
+Production-ready Kubernetes deployment of a multi-tier WordPress application with MySQL backend, featuring enterprise-grade security, persistent storage, and comprehensive monitoring through Kubernetes Dashboard.
+🏗️ Architecture
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   LoadBalancer  │    │   Kubernetes    │    │   NFS Server    │
+│                 │    │   Dashboard     │    │                 │
+└─────────┬───────┘    └─────────────────┘    └─────────┬───────┘
+          │                                              │
+          ▼                                              │
+┌─────────────────┐                                      │
+│   WordPress     │                                      │
+│   (2 replicas)  │◄─────────────────────────────────────┘
+│   Port: 80      │
+└─────────┬───────┘
+          │
+          ▼
+┌─────────────────┐
+│     MySQL       │
+│   (1 replica)   │
+│   Port: 3306    │
+└─────────────────┘
 
-This project demonstrates a complete 3-tier architecture for deploying a WordPress application on Kubernetes. The deployment includes:
-
-- **Frontend (Web Layer)**: WordPress container.
-- **Backend (Application Layer)**: PHP and Apache via WordPress image.
-- **Database Layer**: MySQL database running in a separate Pod.
-
----
-
-## 🗂️ Project Structure
-
-├── wordpress-deployment.yaml # WordPress Deployment with environment variables from ConfigMap and Secret
-
-├── mysql-deployment.yaml # MySQL Deployment
-
-├── wordpress-service.yaml # LoadBalancer/NodePort service for WordPress
-
-├── mysql-service.yaml # ClusterIP service for MySQL
-
-├── wp-configmap.yaml # ConfigMap for database credentials (except password)
-
-├── mysql-secret.yaml # Secret for MySQL password
-
-├── wordpress-pvc.yaml # Persistent Volume Claim for WordPress
-
-├── mysql-pvc.yaml # Persistent Volume Claim for MySQL
+📁 Project Structure
+wordpress-mysql-k8s/
+├── 01-infrastructure/
+│   ├── namespace-config.yaml          # Namespace, quotas, limits
+│   └── storage-volumes.yaml           # Persistent volumes
+├── 02-security/
+│   ├── dashboard-admin.yaml           # Dashboard RBAC
+│   ├── application-config.yaml        # ConfigMaps
+│   └── network-policies.yaml          # Network security
+├── 03-database/
+│   └── mysql-deployment.yaml          # MySQL deployment
+├── 04-application/
+│   └── wordpress-deployment.yaml      # WordPress deployment
+├── scripts/
+│   ├── deploy.sh                      # Automated deployment
+│   ├── cleanup.sh                     # Environment cleanup
+│   └── verify.sh                      # Health verification
+└── README.md
 
 
+🚀 Quick Start
+Prerequisites
 
-## 📦 Components
+Kubernetes cluster (v1.25+)
+kubectl configured
+NFS server with network access
+Minimum 4GB RAM, 2 CPU cores
 
-### 🔧 ConfigMap
+🔧 Installation
 
-Stores non-sensitive configuration data like:
-```yaml
-WORDPRESS_DB_HOST: mysql-service
-WORDPRESS_DB_NAME: wordpress
-WORDPRESS_DB_USER: myuser
-🔐 Secret
-Stores sensitive information like:
+Clone and Navigate
+cd wordpress-mysql-k8s
 
-MYSQL_PASSWORD: mypasswd
-🐳 WordPress Deployment
-Uses the wordpress:latest Docker image.
+Configure NFS Server
+bash# Update NFS_SERVER_IP in storage-volumes.yaml
+sed -i 's/<NFS_SERVER_IP>/YOUR_NFS_IP/g' storage-volumes.yaml
 
-Environment variables sourced from ConfigMap and Secret.
+Deploy Infrastructure
+bash./deploy.sh
 
-Mounts a PersistentVolume at /var/www/html.
+Access Application
+bash# Get WordPress URL
+kubectl get svc wordpress-service -n wordpress-mysql
 
-🐬 MySQL Deployment
-Uses the mysql:5.7 Docker image.
+# Access Dashboard
+kubectl proxy --address='0.0.0.0' --accept-hosts='^*$'
+# Open: http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard
 
-Reads environment variables from Secret.
+🚀 Deployment Commands
+Automated Deployment
+bash# Complete deployment
+./scripts/deploy.sh
 
-Mounts a PersistentVolume at /var/lib/mysql.
+# Verify deployment
+./scripts/verify.sh
 
-🌐 Services
-wordpress-service: Exposes WordPress to external traffic via LoadBalancer or NodePort.
+# Clean up resources
+./scripts/cleanup.sh
+Manual Deployment
+bash# 1. Infrastructure
+kubectl apply -f 01-infrastructure/
 
-mysql-service: ClusterIP service accessible only within the cluster.
+# 2. Security & Configuration
+kubectl apply -f 02-security/
+kubectl create secret generic mysql-secret \
+  --from-literal=root-password='StrongRootP@ss123!' \
+  --from-literal=database='wordpress_db' \
+  --from-literal=username='wp_user' \
+  --from-literal=password='SecureWP@ss456!' \
+  --namespace=wordpress-mysql
 
-🚀 Deployment Steps
-Create ConfigMap & Secret
+# 3. Database
+kubectl apply -f 03-database/
 
-kubectl apply -f wp-configmap.yaml
-kubectl apply -f mysql-secret.yaml
-Deploy Persistent Volume Claims
+# 4. Application
+kubectl apply -f 04-application/
+🔍 Monitoring & Verification
+Health Checks
+bash# Overall status
+kubectl get all -n wordpress-mysql
 
-kubectl apply -f mysql-pvc.yaml
-kubectl apply -f wordpress-pvc.yaml
-Deploy MySQL
+# Pod logs
+kubectl logs -f deployment/mysql -n wordpress-mysql
+kubectl logs -f deployment/wordpress -n wordpress-mysql
 
-kubectl apply -f mysql-deployment.yaml
-kubectl apply -f mysql-service.yaml
-Deploy WordPress
+# Service connectivity
+kubectl get endpoints -n wordpress-mysql
 
-kubectl apply -f wordpress-deployment.yaml
-kubectl apply -f wordpress-service.yaml
-Check Pods and Services
+# Resource usage
+kubectl top pods -n wordpress-mysql
 
-kubectl get pods
-kubectl get svc
-Access WordPress
+# Scale WordPress replicas
+kubectl scale deployment wordpress --replicas=5 -n wordpress-mysql
 
-If using NodePort, visit:
-
-php-template
-Copy
-Edit
-http://<NodeIP>:<NodePort>
-If using LoadBalancer, visit the external IP once it's available:
-
-http://<LoadBalancer-IP>
-🛠️ Troubleshooting
-"Error establishing a database connection"
-
-Check WORDPRESS_DB_HOST value in ConfigMap.
-
-Ensure MySQL Pod is running and the user has correct privileges.
-
-Verify MySQL password in Secret matches the MySQL Deployment.
-
-Access Denied for User
-
-Exec into MySQL Pod and run:
-
-bash
-mysql -u root -p
-SHOW GRANTS FOR 'myuser'@'%';
-📄 Requirements
-Kubernetes cluster (minikube, kind, or cloud-managed)
-
-kubectl installed
-
-Docker (for local image builds if needed)
-
-📌 Notes
-This setup is for educational/demo purposes.
-
-For production, consider using:
-
-TLS/SSL with Ingress
-
-Helm Charts
-
-StatefulSets for MySQL
-
-External storage provisioners
-
-👨‍💻 Author
-Created by Alabi
+# Auto-scaling (HPA)
+kubectl autoscale deployment wordpress --cpu-percent=70 --min=2 --max=10 -n wordpress-mysql
