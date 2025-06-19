@@ -43,42 +43,65 @@ wordpress-mysql-k8s/
 Prerequisites
 
 Kubernetes cluster (v1.25+)
+
 kubectl configured and connected to your cluster
+
 NFS server with network access to the cluster
+
 Minimum 4GB RAM, 2 CPU cores available in the cluster
 
 1. Prepare Your Environment
+   
 First, ensure your NFS server is set up and accessible:
+
 Test NFS server connectivity
+
 showmount -e <YOUR_NFS_SERVER_IP>
 
 # Create NFS export directories
+
 sudo mkdir -p /nfs/mysql /nfs/wordpress
+
 sudo chown nobody:nogroup /nfs/mysql /nfs/wordpress
+
 sudo chmod 755 /nfs/mysql /nfs/wordpress
+
 2. Configure NFS Server IP
+
 Update the deployment file with your NFS server IP:
+
 Replace <NFS_SERVER_IP> with your actual NFS server IP
+
 export NFS_SERVER_IP="192.168.1.100"  # Replace with your IP
+
 sed -i "s/<NFS_SERVER_IP>/$NFS_SERVER_IP/g" wordpress-k8s-deployment.yaml
+
 3. Deploy the Application
+
 Make the scripts executable and run the deployment:
+
 chmod +x scripts/*.sh
 
 🔧 Installation
 
 Clone and Navigate
+
 cd wordpress-mysql-k8s
 
 Configure NFS Server
+
 bash# Update NFS_SERVER_IP in storage-volumes.yaml
+
 sed -i 's/<NFS_SERVER_IP>/YOUR_NFS_IP/g' storage-volumes.yaml
 
 Deploy Infrastructure
-bash./deploy.sh
+
+./deploy.sh
 
 Access Application
+
 bash# Get WordPress URL
+
 kubectl get svc wordpress-service -n wordpress-mysql
 
 # Access Dashboard
@@ -94,9 +117,13 @@ bash# Complete deployment
 ./scripts/verify.sh
 
 # Clean up resources
+
 ./scripts/cleanup.sh
+
 Manual Deployment
+
 bash# 1. Infrastructure
+
 kubectl apply -f 01-infrastructure/
 
 # 2. Security & Configuration
