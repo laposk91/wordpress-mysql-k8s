@@ -7,20 +7,35 @@ persistent storage, and comprehensive monitoring through Kubernetes Dashboard.
 wordpress-mysql-k8s/
 
 ├── 01-infrastructure/
-│   ├── namespace-config.yaml          # Namespace, quotas, limits                                        
-│   └── storage-volumes.yaml           # Persistent volumes
+
+│   ├── namespace-config.yaml
+
+│   └── storage-volumes.yaml
+
 ├── 02-security/
-│   ├── dashboard-admin.yaml           # Dashboard RBAC
-│   ├── application-config.yaml        # ConfigMaps
-│   └── network-policies.yaml          # Network security
+
+│   ├── dashboard-admin.yaml        
+
+│   ├── application-config.yaml      
+
+│   └── network-policies.yaml         
+
 ├── 03-database/
-│   └── mysql-deployment.yaml          # MySQL deployment
+
+│   └── mysql-deployment.yaml        
+
 ├── 04-application/
-│   └── wordpress-deployment.yaml      # WordPress deployment
+
+│   └── wordpress-deployment.yaml      
+
 ├── scripts/
-│   ├── deploy.sh                      # Automated deployment
-│   ├── cleanup.sh                     # Environment cleanup
-│   └── verify.sh                      # Health verification
+
+│   ├── deploy.sh                      
+
+│   ├── cleanup.sh                     
+
+│   └── verify.sh                     
+
 └── README.md
 
 
