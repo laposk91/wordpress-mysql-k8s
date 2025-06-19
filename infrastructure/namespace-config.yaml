@@ -1,13 +1,19 @@
+# 01-infrastructure/namespace-config.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: mysql-app
+  name: wordpress-mysql
+  labels:
+    name: wordpress-mysql
+    tier: production
+
 ---
+# Resource Quota for the namespace
 apiVersion: v1
 kind: ResourceQuota
 metadata:
-  name: mysql-app-quota
-  namespace: mysql-app
+  name: wordpress-quota
+  namespace: wordpress-mysql
 spec:
   hard:
     requests.cpu: "2"
@@ -16,3 +22,21 @@ spec:
     limits.memory: 8Gi
     persistentvolumeclaims: "4"
     pods: "10"
+    services: "5"
+
+---
+# Limit Range for default resource limits
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: wordpress-limits
+  namespace: wordpress-mysql
+spec:
+  limits:
+  - default:
+      cpu: 500m
+      memory: 512Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 128Mi
+    type: Container
