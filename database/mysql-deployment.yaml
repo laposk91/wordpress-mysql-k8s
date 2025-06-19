@@ -1,8 +1,27 @@
+# MySQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  namespace: wordpress-mysql
+  labels:
+    app: mysql
+spec:
+  ports:
+  - port: 3306
+    targetPort: 3306
+    protocol: TCP
+  selector:
+    app: mysql
+  type: ClusterIP
+
+---
+# MySQL Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: mysql-deployment
-  namespace: default
+  name: mysql
+  namespace: wordpress-mysql
   labels:
     app: mysql
 spec:
@@ -28,9 +47,9 @@ spec:
               key: root-password
         - name: MYSQL_DATABASE
           valueFrom:
-            configMapKeyRef:
-              name: mysql-config
-              key: database-name
+            secretKeyRef:
+              name: mysql-secret
+              key: database
         - name: MYSQL_USER
           valueFrom:
             secretKeyRef:
@@ -41,9 +60,40 @@ spec:
             secretKeyRef:
               name: mysql-secret
               key: password
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
         volumeMounts:
         - name: mysql-storage
           mountPath: /var/lib/mysql
+        livenessProbe:
+          exec:
+            command:
+            - mysqladmin
+            - ping
+            - -h
+            - localhost
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - mysql
+            - -h
+            - localhost
+            - -u
+            - root
+            - -p$(MYSQL_ROOT_PASSWORD)
+            - -e
+            - "SELECT 1"
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          timeoutSeconds: 3
       volumes:
       - name: mysql-storage
         persistentVolumeClaim:
