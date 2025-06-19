@@ -40,9 +40,6 @@ WORDPRESS_DB_USER: myuser
 🔐 Secret
 Stores sensitive information like:
 
-yaml
-Copy
-Edit
 MYSQL_PASSWORD: mypasswd
 🐳 WordPress Deployment
 Uses the wordpress:latest Docker image.
@@ -94,9 +91,6 @@ Edit
 http://<NodeIP>:<NodePort>
 If using LoadBalancer, visit the external IP once it's available:
 
-cpp
-Copy
-Edit
 http://<LoadBalancer-IP>
 🛠️ Troubleshooting
 "Error establishing a database connection"
@@ -112,8 +106,6 @@ Access Denied for User
 Exec into MySQL Pod and run:
 
 bash
-Copy
-Edit
 mysql -u root -p
 SHOW GRANTS FOR 'myuser'@'%';
 📄 Requirements
