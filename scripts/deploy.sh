@@ -85,7 +85,8 @@ prepare_storage_config() {
     print_header "Preparing Storage Configuration"
     
     # Create temporary file with NFS server IP replaced
-    sed "s/<NFS_SERVER_IP>/$NFS_SERVER_IP/g" wordpress-k8s-deployment.yaml > /tmp/wordpress-deployment.yaml
+    sed "s/<NFS_SERVER_IP>/$NFS_SERVER_IP/g" ../application/wordpress-deployment.yaml > /tmp/wordpress-deployment.yaml
+
     print_status "Storage configuration prepared with NFS server: $NFS_SERVER_IP"
 }
 
