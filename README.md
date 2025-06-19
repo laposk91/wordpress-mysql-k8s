@@ -1,6 +1,9 @@
 📋 Overview
-Production-ready Kubernetes deployment of a multi-tier WordPress application with MySQL backend, featuring enterprise-grade security, persistent storage, and comprehensive monitoring through Kubernetes Dashboard.
+Production-ready Kubernetes deployment of a multi-tier WordPress application with MySQL backend, featuring enterprise-grade security, 
+persistent storage, and comprehensive monitoring through Kubernetes Dashboard.
+
 🏗️ Architecture
+
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   LoadBalancer  │    │   Kubernetes    │    │   NFS Server    │
 │                 │    │   Dashboard     │    │                 │
@@ -19,6 +22,8 @@ Production-ready Kubernetes deployment of a multi-tier WordPress application wit
 │   (1 replica)   │
 │   Port: 3306    │
 └─────────────────┘
+
+
 
 📁 Project Structure
 wordpress-mysql-k8s/
