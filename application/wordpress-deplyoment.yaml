@@ -1,8 +1,27 @@
+# WordPress Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: wordpress-service
+  namespace: wordpress-mysql
+  labels:
+    app: wordpress
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+  selector:
+    app: wordpress
+  type: LoadBalancer
+
+---
+# WordPress Deployment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: wordpress-deployment
-  namespace: default
+  name: wordpress
+  namespace: wordpress-mysql
   labels:
     app: wordpress
 spec:
@@ -17,17 +36,20 @@ spec:
     spec:
       containers:
       - name: wordpress
-        image: wordpress:latest
+        image: wordpress:6.3-apache
         ports:
         - containerPort: 80
         env:
         - name: WORDPRESS_DB_HOST
-          value: mysql-service:3306
-        - name: WORDPRESS_DB_NAME
           valueFrom:
             configMapKeyRef:
               name: wordpress-config
-              key: database-name
+              key: WORDPRESS_DB_HOST
+        - name: WORDPRESS_DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: mysql-secret
+              key: database
         - name: WORDPRESS_DB_USER
           valueFrom:
             secretKeyRef:
@@ -38,9 +60,35 @@ spec:
             secretKeyRef:
               name: mysql-secret
               key: password
+        - name: WORDPRESS_TABLE_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              name: wordpress-config
+              key: WORDPRESS_TABLE_PREFIX
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
         volumeMounts:
         - name: wordpress-storage
           mountPath: /var/www/html
+        livenessProbe:
+          httpGet:
+            path: /wp-admin/install.php
+            port: 80
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /wp-admin/install.php
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
       volumes:
       - name: wordpress-storage
         persistentVolumeClaim:
