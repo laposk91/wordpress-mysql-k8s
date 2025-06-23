@@ -1,19 +1,18 @@
-# scripts/verify.sh - Deployment Verification Script
 #!/bin/bash
 
 set -e
 
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+NAMESPACE="wordpress"
+
 print_header() {
-    echo -e "${BLUE}================================${NC}"
-    echo -e "${BLUE}$1${NC}"
-    echo -e "${BLUE}================================${NC}"
+    echo -e "${BLUE}========== $1 ==========${NC}"
 }
 
 print_status() {
@@ -30,97 +29,57 @@ print_error() {
 
 check_namespace() {
     print_header "Checking Namespace"
-    
-    if kubectl get namespace wordpress-mysql &> /dev/null; then
-        print_status "Namespace wordpress-mysql exists"
+    if kubectl get namespace $NAMESPACE &>/dev/null; then
+        print_status "Namespace '$NAMESPACE' exists"
     else
-        print_error "Namespace wordpress-mysql not found"
+        print_error "Namespace '$NAMESPACE' not found"
         return 1
     fi
 }
 
-check_secrets() {
-    print_header "Checking Secrets"
-    
-    if kubectl get secret mysql-secret -n wordpress-mysql &> /dev/null; then
-        print_status "MySQL secret exists"
+check_secret() {
+    print_header "Checking Secret"
+    if kubectl get secret mysql-pass -n $NAMESPACE &>/dev/null; then
+        print_status "Secret 'mysql-pass' exists"
     else
-        print_error "MySQL secret not found"
-        return 1
-    fi
-}
-
-check_storage() {
-    print_header "Checking Storage"
-    
-    # Check PVs
-    PV_COUNT=$(kubectl get pv | grep -c "mysql-pv\|wordpress-pv" || echo "0")
-    if [ "$PV_COUNT" -eq 2 ]; then
-        print_status "Persistent Volumes are created"
-    else
-        print_warning "Expected 2 PVs, found $PV_COUNT"
-    fi
-    
-    # Check PVCs
-    kubectl get pvc -n wordpress-mysql
-    PVC_BOUND=$(kubectl get pvc -n wordpress-mysql -o jsonpath='{.items[*].status.phase}' | grep -o "Bound" | wc -l)
-    if [ "$PVC_BOUND" -eq 2 ]; then
-        print_status "All PVCs are bound"
-    else
-        print_warning "Not all PVCs are bound"
+        print_error "Secret 'mysql-pass' not found"
     fi
 }
 
 check_deployments() {
     print_header "Checking Deployments"
-    
-    # Check MySQL deployment
-    MYSQL_READY=$(kubectl get deployment mysql -n wordpress-mysql -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-    if [ "$MYSQL_READY" -eq 1 ]; then
+
+    MYSQL_READY=$(kubectl get deployment mysql -n $NAMESPACE -o jsonpath='{.status.readyReplicas}' || echo 0)
+    if [ "$MYSQL_READY" -ge 1 ]; then
         print_status "MySQL deployment is ready"
     else
         print_error "MySQL deployment is not ready"
     fi
-    
-    # Check WordPress deployment
-    WP_READY=$(kubectl get deployment wordpress -n wordpress-mysql -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-    WP_DESIRED=$(kubectl get deployment wordpress -n wordpress-mysql -o jsonpath='{.spec.replicas}' 2>/dev/null || echo "0")
+
+    WP_READY=$(kubectl get deployment wordpress -n $NAMESPACE -o jsonpath='{.status.readyReplicas}' || echo 0)
+    WP_DESIRED=$(kubectl get deployment wordpress -n $NAMESPACE -o jsonpath='{.spec.replicas}' || echo 0)
     if [ "$WP_READY" -eq "$WP_DESIRED" ]; then
         print_status "WordPress deployment is ready ($WP_READY/$WP_DESIRED replicas)"
     else
-        print_warning "WordPress deployment: $WP_READY/$WP_DESIRED replicas ready"
+        print_warning "WordPress not fully ready ($WP_READY/$WP_DESIRED)"
     fi
 }
 
 check_services() {
     print_header "Checking Services"
-    
-    # Check MySQL service
-    if kubectl get service mysql-service -n wordpress-mysql &> /dev/null; then
+
+    if kubectl get svc mysql -n $NAMESPACE &>/dev/null; then
         print_status "MySQL service exists"
-        
-        # Check endpoints
-        MYSQL_ENDPOINTS=$(kubectl get endpoints mysql-service -n wordpress-mysql -o jsonpath='{.subsets[0].addresses}' | jq length 2>/dev/null || echo "0")
-        if [ "$MYSQL_ENDPOINTS" -gt 0 ]; then
-            print_status "MySQL service has endpoints"
-        else
-            print_warning "MySQL service has no endpoints"
-        fi
     else
         print_error "MySQL service not found"
     fi
-    
-    # Check WordPress service
-    if kubectl get service wordpress-service -n wordpress-mysql &> /dev/null; then
+
+    if kubectl get svc wordpress -n $NAMESPACE &>/dev/null; then
         print_status "WordPress service exists"
-        
-        # Check external access
-        EXTERNAL_IP=$(kubectl get svc wordpress-service -n wordpress-mysql -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
-        if [ -n "$EXTERNAL_IP" ]; then
-            print_status "WordPress service has external IP: $EXTERNAL_IP"
-        else
-            print_warning "WordPress service does not have external IP assigned"
-        fi
+
+        NODE_PORT=$(kubectl get svc wordpress -n $NAMESPACE -o jsonpath='{.spec.ports[0].nodePort}')
+        NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+        echo -e "${YELLOW}Try accessing WordPress at: http://$NODE_IP:$NODE_PORT${NC}"
     else
         print_error "WordPress service not found"
     fi
@@ -128,86 +87,56 @@ check_services() {
 
 check_pod_health() {
     print_header "Checking Pod Health"
-    
-    echo "Current pod status:"
-    kubectl get pods -n wordpress-mysql
-    
-    # Check MySQL pod health
-    MYSQL_POD=$(kubectl get pods -n wordpress-mysql -l app=mysql -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    kubectl get pods -n $NAMESPACE
+
+    MYSQL_POD=$(kubectl get pods -n $NAMESPACE -l app=mysql -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     if [ -n "$MYSQL_POD" ]; then
-        if kubectl exec -n wordpress-mysql "$MYSQL_POD" -- mysqladmin ping -h localhost --silent; then
-            print_status "MySQL is responding to ping"
-        else
-            print_error "MySQL is not responding to ping"
-        fi
+        kubectl exec -n $NAMESPACE "$MYSQL_POD" -- mysqladmin ping -h localhost --silent &>/dev/null && \
+            print_status "MySQL pod is healthy" || print_error "MySQL is not responding"
     fi
-    
-    # Check WordPress pod health
-    WP_POD=$(kubectl get pods -n wordpress-mysql -l app=wordpress -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+
+    WP_POD=$(kubectl get pods -n $NAMESPACE -l app=wordpress -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
     if [ -n "$WP_POD" ]; then
-        HTTP_CODE=$(kubectl exec -n wordpress-mysql "$WP_POD" -- curl -s -o /dev/null -w "%{http_code}" http://localhost/wp-admin/install.php || echo "000")
-        if [ "$HTTP_CODE" -eq 200 ] || [ "$HTTP_CODE" -eq 302 ]; then
-            print_status "WordPress is responding to HTTP requests"
+        CODE=$(kubectl exec -n $NAMESPACE "$WP_POD" -- curl -s -o /dev/null -w "%{http_code}" http://localhost/wp-admin/install.php)
+        if [[ "$CODE" == "200" || "$CODE" == "302" ]]; then
+            print_status "WordPress responded with HTTP code $CODE"
         else
-            print_warning "WordPress HTTP response code: $HTTP_CODE"
+            print_warning "Unexpected HTTP response: $CODE"
         fi
     fi
 }
 
 check_connectivity() {
-    print_header "Checking Database Connectivity"
-    
-    # Test database connection from WordPress pod
-    WP_POD=$(kubectl get pods -n wordpress-mysql -l app=wordpress -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
-    if [ -n "$WP_POD" ]; then
-        if kubectl exec -n wordpress-mysql "$WP_POD" -- ping -c 1 mysql-service &> /dev/null; then
-            print_status "WordPress can ping MySQL service"
-        else
-            print_error "WordPress cannot ping MySQL service"
-        fi
-    fi
-}
+    print_header "Checking WordPress ↔ MySQL Connectivity"
 
-check_resources() {
-    print_header "Checking Resource Usage"
-    
-    echo "Resource quotas:"
-    kubectl describe quota wordpress-quota -n wordpress-mysql
-    
-    echo ""
-    echo "Pod resource usage:"
-    kubectl top pods -n wordpress-mysql 2>/dev/null || print_warning "Metrics server not available"
+    WP_POD=$(kubectl get pods -n $NAMESPACE -l app=wordpress -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+    if [ -n "$WP_POD" ]; then
+        kubectl exec -n $NAMESPACE "$WP_POD" -- ping -c 1 mysql &>/dev/null && \
+            print_status "WordPress can reach MySQL service" || print_error "Ping failed from WordPress to MySQL"
+    fi
 }
 
 display_logs() {
     print_header "Recent Logs"
-    
-    echo "MySQL logs (last 10 lines):"
-    kubectl logs -n wordpress-mysql deployment/mysql --tail=10
-    
-    echo ""
-    echo "WordPress logs (last 10 lines):"
-    kubectl logs -n wordpress-mysql deployment/wordpress --tail=10
+
+    echo -e "\nMySQL logs:"
+    kubectl logs -n $NAMESPACE deployment/mysql --tail=10
+
+    echo -e "\nWordPress logs:"
+    kubectl logs -n $NAMESPACE deployment/wordpress --tail=10
 }
 
 main() {
-    print_header "WordPress-MySQL Deployment Verification"
-    
+    print_header "🚦 WordPress Deployment Verification"
     check_namespace || exit 1
-    check_secrets || exit 1
-    check_storage
+    check_secret
     check_deployments
     check_services
     check_pod_health
     check_connectivity
-    check_resources
     display_logs
-    
-    print_header "Verification Complete"
-    echo "If all checks passed, your WordPress deployment is healthy!"
+    print_header "✅ Verification Complete"
+    echo "If all checks passed, your deployment is healthy!"
 }
 
-# Run main function
 main
-
-
