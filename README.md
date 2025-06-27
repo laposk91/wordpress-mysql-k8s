@@ -2,42 +2,6 @@
 Production-ready Kubernetes deployment of a multi-tier WordPress application with MySQL backend, featuring enterprise-grade security, 
 persistent storage, and comprehensive monitoring through Kubernetes Dashboard.
 
-📁 Project Structure
-
-wordpress-mysql-k8s/
-
-├── 01-infrastructure/
-
-│   ├── namespace-config.yaml
-
-│   └── storage-volumes.yaml
-
-├── 02-security/
-
-│   ├── dashboard-admin.yaml        
-
-│   ├── application-config.yaml      
-
-│   └── network-policies.yaml         
-
-├── 03-database/
-
-│   └── mysql-deployment.yaml        
-
-├── 04-application/
-
-│   └── wordpress-deployment.yaml      
-
-├── scripts/
-
-│   ├── deploy.sh                      
-
-│   ├── cleanup.sh                     
-
-│   └── verify.sh                     
-
-└── README.md
-
 
 🚀 Quick Start
 Prerequisites
